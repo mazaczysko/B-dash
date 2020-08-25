@@ -47,7 +47,6 @@ int main( int argc, char **argv )
 					break;
 
 				default:
-					al_flip_display( );
 					break;
 			}
 		}while( al_get_next_event( queue, &ev ) );
