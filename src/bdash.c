@@ -53,6 +53,22 @@ int map_put_tile( map *map, int x, int y, ALLEGRO_BITMAP *tile )
 	return 0;
 }
 
+int player_move( map *map, player *player, int dx, int dy )
+{
+	if( player->x + dx >= map->width 
+		|| player->y + dy >= map->height 
+		|| player->x + dx < 0 
+		|| player->y + dy < 0 
+		|| map_put_tile( map, player->x + dx, player->y + dy, player->tile )
+		|| map_put_tile( map, player->x, player->y, NULL )
+		) return 1;
+
+	player->x += dx;
+	player->y += dy;
+	return 0;
+}
+
+
 int main( int argc, char **argv )
 {
 	//Init allegro
@@ -108,6 +124,28 @@ int main( int argc, char **argv )
 					break;
 
 				case ALLEGRO_EVENT_KEY_DOWN:
+					switch( ev.keyboard.keycode )
+					{
+						case ALLEGRO_KEY_DOWN:
+							player_move( &map, &player, 0, 1 );
+							break;
+						
+						case ALLEGRO_KEY_UP:
+							player_move( &map, &player, 0, -1);
+							break;
+
+						case ALLEGRO_KEY_RIGHT:
+							player_move( &map, &player, 1, 0 );
+							break;
+
+						case ALLEGRO_KEY_LEFT:
+							player_move( &map, &player, -1, 0 );
+							break;
+
+						default:
+							break;
+
+					}
 					break;
 
 				case ALLEGRO_EVENT_TIMER:
