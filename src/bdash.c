@@ -2,6 +2,8 @@
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_font.h>
+#include "map.h"
+#include "player.h"
 
 typedef enum
 {
@@ -12,74 +14,6 @@ typedef enum
 	TILE_PLAYER
 }tile_id;
 
-typedef struct
-{
-	int x, y;
-	ALLEGRO_BITMAP *tile;
-}player;
-
-typedef struct
-{
-	int width, height, depth;
-	ALLEGRO_BITMAP **tile;
-}map;
-
-
-void player_init( player *player, ALLEGRO_BITMAP *tile, int x, int y )
-{
-	player->tile = tile;
-	player->x = x;
-	player->y = y;
-}
-
-void map_init( map *map, int width, int height, int depth )
-{
-	map->width = width;
-	map->height = height;
-	map->depth = depth;
-	map->tile = calloc( width * height * depth, sizeof( ALLEGRO_BITMAP *) );
-}
-
-ALLEGRO_BITMAP *map_get_tile( map *map, int x, int y, int z )
-{
-	if ( x < 0 
-		|| y < 0
-		|| z < 0 
-		|| x >= map->width 
-		|| y >= map->height 
-		|| z >= map->depth
-		) return NULL;
-	
-	return map->tile[x * map->depth + y * map->depth * map->width + z]; 
-}
-
-int map_put_tile( map *map, int x, int y, int z, ALLEGRO_BITMAP *tile )
-{
-	if ( x < 0 
-		|| y < 0 
-		|| z < 0 
-		|| x >= map->width 
-		|| y >= map->height
-		|| z >= map->depth ) return 1;
-	
-	map->tile[x * map->depth + y * map->depth * map->width + z] = tile;
-	return 0;
-}
-
-int player_move( map *map, player *player, int dx, int dy )
-{
-	if ( player->x + dx >= map->width 
-		|| player->y + dy >= map->height 
-		|| player->x + dx < 0 
-		|| player->y + dy < 0 
-		|| map_put_tile( map, player->x + dx, player->y + dy, 1, player->tile )
-		|| map_put_tile( map, player->x, player->y, 1, NULL )
-		) return 1;
-
-	player->x += dx;
-	player->y += dy;
-	return 0;
-}
 
 
 int main( int argc, char **argv )
