@@ -20,7 +20,7 @@ typedef struct
 
 typedef struct
 {
-	int width, height;
+	int width, height, depth;
 	ALLEGRO_BITMAP **tile;
 }map;
 
@@ -32,35 +32,48 @@ void player_init( player *player, ALLEGRO_BITMAP *tile, int x, int y )
 	player->y = y;
 }
 
-void map_init( map *map, int width, int height )
+void map_init( map *map, int width, int height, int depth )
 {
 	map->width = width;
 	map->height = height;
-	map->tile = calloc( width * height, sizeof( ALLEGRO_BITMAP *) );
+	map->depth = depth;
+	map->tile = calloc( width * height * depth, sizeof( ALLEGRO_BITMAP *) );
 }
 
-ALLEGRO_BITMAP *map_get_tile( map *map, int x, int y )
+ALLEGRO_BITMAP *map_get_tile( map *map, int x, int y, int z )
 {
-	if( x < 0 || y < 0 || x > map->width || y > map->height ) return NULL;
-	return map->tile[x+y*map->width]; 
-}
-
-int map_put_tile( map *map, int x, int y, ALLEGRO_BITMAP *tile )
-{
-	if( x < 0 || y < 0 || x > map->width || y > map->height ) return 1;
+	if ( x < 0 
+		|| y < 0
+		|| z < 0 
+		|| x >= map->width 
+		|| y >= map->height 
+		|| z >= map->depth
+		) return NULL;
 	
-	map->tile[x+y*map->width] = tile;
+	return map->tile[x * map->depth + y * map->depth * map->width + z]; 
+}
+
+int map_put_tile( map *map, int x, int y, int z, ALLEGRO_BITMAP *tile )
+{
+	if ( x < 0 
+		|| y < 0 
+		|| z < 0 
+		|| x >= map->width 
+		|| y >= map->height
+		|| z >= map->depth ) return 1;
+	
+	map->tile[x * map->depth + y * map->depth * map->width + z] = tile;
 	return 0;
 }
 
 int player_move( map *map, player *player, int dx, int dy )
 {
-	if( player->x + dx >= map->width 
+	if ( player->x + dx >= map->width 
 		|| player->y + dy >= map->height 
 		|| player->x + dx < 0 
 		|| player->y + dy < 0 
-		|| map_put_tile( map, player->x + dx, player->y + dy, player->tile )
-		|| map_put_tile( map, player->x, player->y, NULL )
+		|| map_put_tile( map, player->x + dx, player->y + dy, 1, player->tile )
+		|| map_put_tile( map, player->x, player->y, 1, NULL )
 		) return 1;
 
 	player->x += dx;
@@ -104,27 +117,32 @@ int main( int argc, char **argv )
 	player_init( &player, tiles[TILE_PLAYER], 5, 5 );
 
 	map map;
-	map_init( &map, 20, 20 );
+	map_init( &map, 20, 20, 2 );
+	
+	//TEMP
+	for( int i = 0; i < map.width; i++ )
+		for( int j = 0; j < map.height; j++ )
+			map_put_tile( &map, i, j, 0, tiles[TILE_DIRT] );
 
 	ALLEGRO_BITMAP *t;
 
-	map_put_tile( &map, player.x, player.y, player.tile );
+	map_put_tile( &map, player.x, player.y, 1,  player.tile );
 	
 
-	while( alive )
+	while ( alive )
 	{
 		al_wait_for_event( queue, &ev );
 
 		do
 		{
-			switch( ev.type )
+			switch ( ev.type )
 			{
 				case ALLEGRO_EVENT_DISPLAY_CLOSE:
 					alive = 0;
 					break;
 
 				case ALLEGRO_EVENT_KEY_DOWN:
-					switch( ev.keyboard.keycode )
+					switch ( ev.keyboard.keycode )
 					{
 						case ALLEGRO_KEY_DOWN:
 							player_move( &map, &player, 0, 1 );
@@ -149,17 +167,20 @@ int main( int argc, char **argv )
 					break;
 
 				case ALLEGRO_EVENT_TIMER:
-					if( ev.timer.source == draw_timer )
+					if ( ev.timer.source == draw_timer )
 					{
 							al_clear_to_color( al_map_rgb( 0, 0, 0 ) );
-							for( int i = 0; i < map.width; i++ )
+							for ( int i = 0; i < map.width; i++ )
 							{
-								for( int j = 0; j < map.height; j++ )
+								for ( int j = 0; j < map.height; j++ )
 								{
-									t = map_get_tile( &map, i, j );
-									if( t != NULL )
+									for ( int k = 0; k < map.depth; k++ )
 									{
-										al_draw_scaled_bitmap( t, 0, 0, 32, 32, i*64, j*64, 64, 64, 0 );
+										t = map_get_tile( &map, i, j, k );
+										if ( t != NULL )
+										{
+											al_draw_scaled_bitmap( t, 0, 0, 32, 32, i*64, j*64, 64, 64, 0 );
+										}
 									}
 								}
 							}	
@@ -174,7 +195,7 @@ int main( int argc, char **argv )
 		}while( al_get_next_event( queue, &ev ) && alive );
 	}
 
-	for( int i = 0; i < 5; i++ )
+	for ( int i = 0; i < 5; i++ )
 	{
 		al_destroy_bitmap( tiles[i] );
 	}
