@@ -3,6 +3,17 @@
 
 #include <allegro5/allegro_image.h>
 
+typedef enum
+{
+	TILE_AIR,
+	TILE_WALL,
+ 	TILE_DIRT,
+	TILE_DOOR,
+	TILE_DIAMOND,
+	TILE_BOULDER,
+	TILE_PLAYER
+}tile_id;
+
 typedef struct
 {
 	int width, height, depth;

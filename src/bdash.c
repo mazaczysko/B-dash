@@ -5,15 +5,44 @@
 #include "map.h"
 #include "player.h"
 
-typedef enum
-{
-	TILE_AIR,
-	TILE_WALL,
- 	TILE_DIRT,
-	TILE_DIAMOND,
-	TILE_PLAYER
-}tile_id;
+#define TILE_CNT 7
+#define WIN_WIDTH_BLOCKS 16
+#define WIN_HEIGHT_BLOCKS 12
+#define TILE_SIZE 64 
 
+void cam_follow( int *cx, int *cy, map *map, player *player, int w, int h)
+{
+	if( player->x - *cx >= w - 2 ) *cx+=1;
+	else if( player->x - *cx <= 2 ) *cx-=1;
+	
+	if( player->y - *cy >= h - 2 ) *cy+=1;
+	else if( player->y - *cy <= 2 ) *cy-=1;
+}
+
+void map_render( map *map, int cx, int cy, int w, int h )
+{
+	ALLEGRO_BITMAP *t = NULL;
+
+	al_clear_to_color( al_map_rgb( 0, 0, 0 ) );
+
+	for( int x = 0; x < w; x++ )
+	{
+		for( int y = 0; y < h; y++ )
+		{
+			for( int z = 0; z < map->depth; z++ )
+			{
+				int mx = x + cx;
+				int my = y + cy;
+				if( mx < 0 || my < 0 || mx >= map->width || my >= map->height ) break;
+				t = map_get_tile( map, mx, my, z );
+				if( t != NULL )
+				{
+					al_draw_scaled_bitmap( t, 0, 0, 32, 32, x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE, 0 );
+				}
+			}
+		}
+	}	
+}
 
 
 int main( int argc, char **argv )
@@ -23,7 +52,7 @@ int main( int argc, char **argv )
 	al_init_image_addon( );
 	al_install_keyboard( );
 
-	ALLEGRO_DISPLAY *win = al_create_display( 800, 600 );
+	ALLEGRO_DISPLAY *win = al_create_display( WIN_WIDTH_BLOCKS * TILE_SIZE, WIN_HEIGHT_BLOCKS * TILE_SIZE );
 	ALLEGRO_FONT *font = al_create_builtin_font( );
 
 	ALLEGRO_TIMER *draw_timer = al_create_timer( 1.0 / 60.0 );
@@ -36,32 +65,39 @@ int main( int argc, char **argv )
 
 	al_start_timer( draw_timer );
 
-	ALLEGRO_BITMAP *tiles[5] =
+	ALLEGRO_BITMAP *tiles[TILE_CNT] =
 	{
 		[TILE_AIR] = al_load_bitmap( "resources/air.png" ),
 		[TILE_WALL] = al_load_bitmap( "resources/wall.png" ),
 		[TILE_DIRT] = al_load_bitmap( "resources/dirt.png" ),
+		[TILE_DOOR] = al_load_bitmap( "resources/door.png" ),
 		[TILE_DIAMOND] = al_load_bitmap( "resources/diamond.png" ),
+		[TILE_BOULDER] = al_load_bitmap( "resources/boulder.png" ),
 		[TILE_PLAYER] = al_load_bitmap( "resources/player.png" )
 	};
 
 	int alive = 1;
-
+	
+	//Init player
 	player player;
 	player_init( &player, tiles[TILE_PLAYER], 5, 5 );
 
 	map map;
 	map_init( &map, 20, 20, 2 );
 	
-	//TEMP
+	//Temporary map
 	for( int i = 0; i < map.width; i++ )
 		for( int j = 0; j < map.height; j++ )
-			map_put_tile( &map, i, j, 0, tiles[TILE_DIRT] );
-
-	ALLEGRO_BITMAP *t;
-
+			if( (i+j)%2 == 0 )
+				map_put_tile( &map, i, j, 0, tiles[TILE_DIRT] );
+			else
+				map_put_tile( &map, i, j, 0, tiles[TILE_WALL] );
+	
 	map_put_tile( &map, player.x, player.y, 1,  player.tile );
 	
+	//Initialize camera position
+	int cx = player.x - WIN_WIDTH_BLOCKS/2;
+	int cy = player.y - WIN_HEIGHT_BLOCKS/2;
 
 	while ( alive )
 	{
@@ -103,23 +139,9 @@ int main( int argc, char **argv )
 				case ALLEGRO_EVENT_TIMER:
 					if ( ev.timer.source == draw_timer )
 					{
-							al_clear_to_color( al_map_rgb( 0, 0, 0 ) );
-							for ( int i = 0; i < map.width; i++ )
-							{
-								for ( int j = 0; j < map.height; j++ )
-								{
-									for ( int k = 0; k < map.depth; k++ )
-									{
-										t = map_get_tile( &map, i, j, k );
-										if ( t != NULL )
-										{
-											al_draw_scaled_bitmap( t, 0, 0, 32, 32, i*64, j*64, 64, 64, 0 );
-										}
-									}
-								}
-							}	
-								
-							al_flip_display( );
+						cam_follow( &cx, &cy, &map, &player, WIN_WIDTH_BLOCKS, WIN_HEIGHT_BLOCKS ); 
+						map_render( &map, cx, cy, WIN_WIDTH_BLOCKS, WIN_HEIGHT_BLOCKS );			
+						al_flip_display( );
 					}
 					break;
 
@@ -129,7 +151,7 @@ int main( int argc, char **argv )
 		}while( al_get_next_event( queue, &ev ) && alive );
 	}
 
-	for ( int i = 0; i < 5; i++ )
+	for ( int i = 0; i < TILE_CNT; i++ )
 	{
 		al_destroy_bitmap( tiles[i] );
 	}
