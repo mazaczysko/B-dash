@@ -73,12 +73,84 @@ private:
 	std::vector<T> m_data;
 };
 
+class world
+{
+public:
+	world( int width, int height, const sf::Texture &bg_tex ) :
+		m_map(width,height), m_bg_tex(bg_tex)
+	{
+		m_bg_tex.setRepeated(true);
+	}
+	
+	void draw( sf::RenderWindow &win, int tile_size, sf::Vector2i map_pos, sf::Vector2i viewport_pos, sf::Vector2i viewport_size ) const
+	{
+		{
+			sf::Sprite sprite;
+			sprite.setTexture(m_bg_tex);
+			sprite.setPosition(0,0);
+			float kx = tile_size / static_cast<float>(m_bg_tex.getSize().x);
+			float ky = tile_size / static_cast<float>(m_bg_tex.getSize().y);
+			sprite.setScale(kx, ky);
+			sprite.setColor(sf::Color(64,64,64));
+			sprite.setTextureRect(sf::IntRect(0, 0, m_bg_tex.getSize().x * viewport_size.x, m_bg_tex.getSize().y * viewport_size.y));
+			win.draw(sprite);
+		}
 
+
+		//viewport_size is in TILES!!!
+		for ( int y = 0; y < viewport_size.y; y++ )
+		{
+			for ( int x = 0; x < viewport_size.x; x++ )
+			{
+				if ( auto ptr = m_map.at(map_pos.x + x, map_pos.y + y) )
+				{
+					sf::Sprite sprite;
+
+					sprite.setTexture(ptr->get_texture());
+					sprite.setPosition(sf::Vector2f(x*tile_size, y*tile_size));
+					
+					float kx = tile_size / static_cast<float>(ptr->get_texture().getSize().x);
+					float ky = tile_size / static_cast<float>(ptr->get_texture().getSize().y);
+					sprite.setScale(kx,ky);
+
+					win.draw(sprite);
+				}
+				
+			}
+		}
+		
+	}
+
+	const auto &at( int x, int y ) const
+	{
+		return m_map.at(x,y);
+	}
+
+	auto &at( int x, int y )
+	{
+		return m_map.at(x,y);
+	}
+
+private:
+	matrix<std::shared_ptr<abstract_tile>> m_map;  
+	sf::Texture m_bg_tex;
+};
 
 template <typename T>
 T map_range( T x, T x1, T x2, T y1, T y2)
 {
 	return y1 + ((y2-y1)/(x2-x1))*(x-x1); 
+}
+
+sf::Texture load_texture( const std::string &path )
+{
+	sf::Texture texture;
+	if ( !texture.loadFromFile(path) )
+	{
+		throw std::runtime_error("Error loading texture from "s + path);
+	}
+	
+	return texture;
 }
 
 int main( )
@@ -91,12 +163,22 @@ int main( )
 	music.setLoop(true);
 	music.play();
 
+	sf::Texture texture;
+	texture.loadFromFile("../resources/graphics/player.png");
+
+	auto player = std::make_shared<static_tile>("../resources/graphics/player.png");
+
+
+	world w( 64, 64, load_texture("../resources/graphics/wall.png") );
+	for( int i = 0; i < 64; i++ )
+		for( int j = 0; j < 64; j++ )
+			if( (i+j)%2 == 0)
+				w.at(i,j) = player;
 
 
 
 	while ( win.isOpen() )
 	{
-		// double t = clock.getElapsedTime().asSeconds();
 
 		for ( sf::Event ev; win.pollEvent(ev);)
 		{
@@ -116,14 +198,8 @@ int main( )
 		}
 			
 		win.clear( sf::Color::Cyan);
-		s1.setOrigin(sf::Vector2f(16.f,16.f));
-		s1.setPosition(sf::Vector2f(400.f,300.f));
-		s1.setScale({5.f, 5.f});
-		win.draw(s1);
+		w.draw( win, 64 , {0,0}, {0,0}, {32,32});
 		win.display();
-
-		
-
 	}
 	
 	return 0;
